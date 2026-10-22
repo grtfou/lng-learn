@@ -77,9 +77,11 @@ erDiagram
   }
 ```
 
+P1.1 migration v2 已加入 `notes.sense_key`、`senses`（note_id、lemma、sense_key、part_of_speech、gloss、accent、pronunciations_json）與 `field_sources`（逐欄來源、作者、授權、取得時間、人工修改與欄位狀態）。`notes.normalized_word` 保存正規化 lemma，唯一鍵為 `(deck_id, normalized_word, sense_key)`；無正式義項的手動／demo／legacy 共用 `manual` 義項鍵。內容 JSON 是 API 快照，與結構化 metadata 於同一交易寫入。
+
 `schema_migrations` 保存已套用版本。SQLite 啟用 foreign keys、WAL 與 busy_timeout；每個 migration 在交易內執行。P0 未提供刪除，外鍵未設 cascade，避免後續直接刪除卡片造成歷史靜默消失。
 
-`content_json` 含 word、ipa、meaning、example、exampleTranslation、phrases、story、image、audio、source。P0 的 image/audio 固定 null，source 是整卡的示範／手動來源。這不足以表示正式多來源內容，P1 必須遷移。
+`content_json` 含 word、ipa、meaning、example、exampleTranslation、phrases、story、image、audio、source。P1.1 的 image/audio 仍為 null，source 保留 P0 相容欄位；實際出處以 fieldSources 與 sense.pronunciations 的各筆來源為準。
 
 `cards.state_json` 完整保存 FSRS card；`due_at` 是它的冗餘索引欄位，兩者必須同交易更新。日期統一 UTC `toISOString()`，固定格式使字串排序與時間排序一致。
 
@@ -91,7 +93,7 @@ erDiagram
 
 - 預覽不落盤，P0 刷新會遺失草稿；草稿保存是 P1 工作。
 - 保存前 server 驗證詞與非空釋義，最多 64 KiB 的 JSON。
-- 正規化為 NFKC、前後 trim、連續空白摺疊、英文小寫，同庫唯一。
+- 正規化為 NFKC、前後 trim、連續空白摺疊、英文小寫，同庫同義項唯一。
 - note + new card 使用同一交易；新卡 due=serverNow，version=0。
 - 首階段限制 en-US，其他語言在 API 直接拒絕，不能默默沿用英文正規化。
 
@@ -109,7 +111,7 @@ erDiagram
 
 目前「揭示後才評分」是 UI 規則，API 未發放揭示 token；在單人可信任本機環境，使用者仍可直接呼叫 API。若未來需要嚴格會話順序，可加入 server session，不把當前 UI 條件視為防作弊機制。
 
-## P1 遷移目標（尚未實作）
+## P1 遷移目標（P1.1 詞義與逐欄來源已實作）
 
 | 資料 | 欄位／索引重點 |
 | --- | --- |
@@ -121,7 +123,7 @@ erDiagram
 | drafts / generation_jobs | 草稿內容、逐欄狀態、cacheKey、attempt、leaseUntil、errorCode、取消狀態 |
 | review events | 撤銷事件與被撤銷紀錄 id；維持不可變歷史與最後事件限制 |
 
-遷移先備份，從舊 content_json 回填文字，`source.kind=demo` 原樣保留，其他欄位以 legacy source 標記，不把示範資料改成 retrieved。既有卡片與 logs 不重設。P2 多卡型時移除 `cards.note_id` unique，改為 `(note_id, template)`，保持各卡獨立狀態。
+v2 遷移前以 `VACUUM INTO` 產生 `<DATABASE_PATH>.pre-v2-<uuid>.sqlite` 一致性備份（僅既有磁碟 DB）；新資料庫與記憶體 DB 不建立備份。v1 SQL 保持原樣，v2 在交易內重建 notes 唯一鍵，暫停外鍵檢查後於提交前執行 foreign_key_check，成功才重新啟用 foreign_keys。遷移失敗回滾、停止啟動，不跳過損壞資料。舊 content_json 原有內容與 `source.kind=demo` 原樣保留，新增逐欄來源標為 legacy，不改成 retrieved。既有卡片、版本與 logs 不重設。P2 多卡型時移除 `cards.note_id` unique，改為 `(note_id, template)`，保持各卡獨立狀態。
 
 ## 本機資料與外部邊界
 

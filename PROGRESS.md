@@ -15,13 +15,13 @@
 ## 尚未完成
 
 1. 選定授權可追溯、無付費憑證的正式字典來源；固定 fixture、共用詞義／逐欄來源契約與 provider 失敗處理。
-2. 追加 migration，保留舊內容、卡片與 logs，實作詞義層級去重與逐欄來源持久化。
+2. [完成] 追加 migration v2，保留舊內容、卡片與 logs，詞義層級去重與逐欄來源持久化。
 3. 詞義選擇、逐欄來源、人工修訂旗標與手動備援介面。
 4. pnpm install --frozen-lockfile、pnpm check、瀏覽器操作、正式 API 驗證及文件完成註記。
 
 ## 目前步驟與下一步
 
-目前：P1.1 第一小階段已建立字典契約、逐欄來源 schema、正式轉接、固定 fixture 與失敗備援測試。下一步：追加 migration、詞義去重與來源持久化，然後接入正式模式與 UI。
+目前：P1.1 資料保存小階段完成。下一步：正式模式設定、詞義選擇與來源顯示 UI、錯誤重試保留草稿。
 
 ## 問題與重要決策
 
@@ -31,3 +31,5 @@
 - 每個小階段完成後更新本檔並 commit；中斷後先讀 AGENTS.md、本檔、git status 與最近 7 筆 commits。
 
 - 字典決策：Free Dictionary API v2，免 key；詳細授權與限制見 docs/DICTIONARY.md。apple 真實 JSON 已確認。bank 回 HTML 404／530，正式外部驗收保留；多義流程以明確標示的手寫 fixture 測試。
+
+- migration v2：舊磁碟資料先建立一致性備份；遷移及來源寫入失敗均回滾。測試涵蓋備份、重開不重跑、FK、舊 FSRS／logs 原值保留、多義去重與來源寫入交易。

@@ -51,7 +51,8 @@ export const contentSchema = z.object({
   fieldSources: z.partialRecord(z.enum(contentFields), fieldSourceSchema).default({}),
 });
 export const noteInputSchema = z.object({
-  content: contentSchema.refine((content) => content.meaning.length > 0, '請先填寫中文釋義'),
+  content: contentSchema.refine((content) => content.meaning.length > 0, '請先填寫中文釋義')
+    .refine((content) => !content.sense || normalizeWord(content.word) === normalizeWord(content.sense.lemma), '單字已改變，請重新選擇詞義或改用手動義項'),
 });
 export const ratingSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
 export const reviewInputSchema = z.object({

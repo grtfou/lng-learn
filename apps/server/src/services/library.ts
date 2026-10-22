@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Content, Deck, Note, Rating, ReviewCard, ReviewResult } from '../../../../packages/shared/src/contracts';
 import { normalizeWord } from '../../../../packages/shared/src/contracts';
+import { completeSources } from '../../../../packages/shared/src/provenance';
+import { insertNoteMetadata } from '../db/note-metadata';
 import { newState, schedule, schedulerInfo } from './scheduler';
 
 export class AppError extends Error {
@@ -41,14 +43,19 @@ export class Library {
 
   saveNote(deckId: string, content: Content): Note {
     this.requireDeck(deckId);
-    const normalized = normalizeWord(content.word);
+    if (content.sense && normalizeWord(content.word) !== normalizeWord(content.sense.lemma))
+      throw new AppError(400, 'VALIDATION_ERROR', '單字已改變，請重新選擇詞義或改用手動義項');
+    const normalized = normalizeWord(content.sense?.lemma ?? content.word);
+    const senseKey = content.sense?.key ?? 'manual';
     const now = this.clock();
-    const note = { id: randomUUID(), deckId, content: { ...content, word: content.word.trim() }, createdAt: now.toISOString() };
+    const note = { id: randomUUID(), deckId, content: completeSources({ ...content, word: content.word.trim() }), createdAt: now.toISOString() };
     this.db.exec('BEGIN IMMEDIATE');
     try {
-      if (this.db.prepare('SELECT id FROM notes WHERE deck_id = ? AND normalized_word = ?').get(deckId, normalized))
-        throw new AppError(409, 'DUPLICATE_WORD', '這個單字已存在此單字庫');
-      this.db.prepare('INSERT INTO notes VALUES (?, ?, ?, ?, ?)').run(note.id, deckId, normalized, JSON.stringify(note.content), note.createdAt);
+      if (this.db.prepare('SELECT id FROM notes WHERE deck_id = ? AND normalized_word = ? AND sense_key = ?').get(deckId, normalized, senseKey))
+        throw new AppError(409, 'DUPLICATE_WORD', '這個單字的相同詞義已存在此單字庫');
+      this.db.prepare('INSERT INTO notes (id, deck_id, normalized_word, content_json, created_at, sense_key) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(note.id, deckId, normalized, JSON.stringify(note.content), note.createdAt, senseKey);
+      insertNoteMetadata(this.db, note.id, note.content);
       this.db.prepare('INSERT INTO cards VALUES (?, ?, ?, ?, 0)').run(randomUUID(), note.id, JSON.stringify(newState(now)), now.toISOString());
       this.db.exec('COMMIT');
       return note;
