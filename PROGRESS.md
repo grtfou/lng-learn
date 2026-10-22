@@ -21,11 +21,13 @@
 
 ## 目前步驟與下一步
 
-目前：P1.1 第一小階段（字典來源與契約）。下一步先確認 Node 24.x / pnpm 11.25.0 的執行路徑，評估 Free Dictionary API v2 與回應中的來源／授權資訊，再建立 provider 與 fixture 測試。
+目前：P1.1 第一小階段已建立字典契約、逐欄來源 schema、正式轉接、固定 fixture 與失敗備援測試。下一步：追加 migration、詞義去重與來源持久化，然後接入正式模式與 UI。
 
 ## 問題與重要決策
 
-- 目前 shell 找不到 node；尚待定位本機 runtime，不變更系統設定。
+- 已定位 Node 24.19.0：`/Users/quokka/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin`，每次 shell 指令 prepend PATH；pnpm 11.25.0。安裝與原始 26 項測試／建置成功。
 - 正式字典僅在明確設定後啟用；demo 預設保留，不需 key。
 - 字典若只提供英文義項，繁中釋義必須由使用者確認填寫，不捏造翻譯、口音或錄音者身分。
 - 每個小階段完成後更新本檔並 commit；中斷後先讀 AGENTS.md、本檔、git status 與最近 7 筆 commits。
+
+- 字典決策：Free Dictionary API v2，免 key；詳細授權與限制見 docs/DICTIONARY.md。apple 真實 JSON 已確認。bank 回 HTML 404／530，正式外部驗收保留；多義流程以明確標示的手寫 fixture 測試。

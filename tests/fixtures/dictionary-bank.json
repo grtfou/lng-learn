@@ -1,0 +1,28 @@
+[
+  {
+    "word": "bank",
+    "phonetics": [],
+    "meanings": [
+      {
+        "partOfSpeech": "noun",
+        "definitions": [
+          {
+            "definition": "An institution that keeps and lends money.",
+            "example": "I visited the bank."
+          },
+          {
+            "definition": "The land along the edge of a river.",
+            "example": "We sat on the river bank."
+          }
+        ]
+      }
+    ],
+    "license": {
+      "name": "CC BY-SA 3.0",
+      "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "sourceUrls": [
+      "https://en.wiktionary.org/wiki/bank"
+    ]
+  }
+]

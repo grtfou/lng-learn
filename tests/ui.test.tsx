@@ -19,7 +19,7 @@ vi.mock('../apps/web/src/features/speech', () => ({
 const deck: Deck = { id: 'deck', name: '英語', language: 'en-US', createdAt: '2026-10-22T00:00:00.000Z', total: 1, due: 1 };
 const content: Content = {
   word: 'apple', meaning: '蘋果', ipa: '', example: '', exampleTranslation: '', phrases: [], story: '',
-  image: null, audio: null, source: { kind: 'manual', provider: 'manual', url: null, license: null },
+  sense: null, fieldSources: {}, image: null, audio: null, source: { kind: 'manual', provider: 'manual', url: null, license: null },
 };
 const note: Note = { id: 'note', deckId: deck.id, content, createdAt: deck.createdAt };
 const card = { id: 'card', noteId: note.id, version: 0, dueAt: deck.createdAt, content };
