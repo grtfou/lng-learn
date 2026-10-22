@@ -36,10 +36,11 @@ export class FreeDictionaryProvider implements DictionaryProvider {
         signal: combined, redirect: 'error', headers: { Accept: 'application/json' },
       });
       if (response.status === 429) {
+        const receivedAt = this.options.clock?.() ?? new Date();
         const raw = response.headers.get('retry-after');
-        const seconds = raw && /^\d+$/.test(raw) ? Number(raw) : raw ? Math.ceil((Date.parse(raw) - now.getTime()) / 1000) : 60;
+        const seconds = raw && /^\d+$/.test(raw) ? Number(raw) : raw ? Math.ceil((Date.parse(raw) - receivedAt.getTime()) / 1000) : 60;
         const retryAfterSeconds = Number.isFinite(seconds) ? Math.max(1, seconds) : 60;
-        this.rateLimitedUntil = now.getTime() + retryAfterSeconds * 1000;
+        this.rateLimitedUntil = receivedAt.getTime() + retryAfterSeconds * 1000;
         await response.body?.cancel();
         throw new DictionaryError({ code: 'RATE_LIMITED', retryAfterSeconds });
       }

@@ -66,7 +66,7 @@ export function App() {
           </>}
           {!deck && decks.length === 0 && <div className="onboarding"><div><span>1</span><h3>建立單字庫</h3><p>依照主題，整理想學的字。</p></div><div><span>2</span><h3>加入新單字</h3><p>口說或輸入，校閱內容後儲存。</p></div><div><span>3</span><h3>讓記憶留下來</h3><p>回想與複習，一次累積一點。</p></div></div>}
         </>}
-        <footer><span><Check size={14} /> 你的進度，留在自己的電腦裡</span><span>架構預覽版 · 內容服務為示範模式</span></footer>
+        <footer><span><Check size={14} /> 你的進度，留在自己的電腦裡</span><span>本機學習工具 · 內容依來源設定</span></footer>
       </div>
     </main>
   </div>;

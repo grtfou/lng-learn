@@ -21,4 +21,4 @@ Kaikki/Wiktionary 結構化資料仍是未來可評估選項；本切片選擇�
 
 ## 外部驗證
 
-apple 已取得真實 JSON；bank 同一官方端點回 HTML 404，重試回 530。銀行／河岸流程先以明確標示為手寫的固定 fixture 驗證，不能宣稱 bank 正式外部驗收已通過。測試不呼叫正式服務，fixture 的取得與內容來源見 `tests/fixtures/README.md`。
+apple、bank 皆已透過正式建置與真實字典完成瀏覽器查詢、選義與保存；bank 金融／河岸分別保存為兩張卡。另取得 bank 四個詞條的真實 JSON 固定快照。早期 curl 回 HTML 404／530，瀏覽器重查也曾遇格式錯誤；UI 保留人工釋義／例句，重試恢復後成功選義保存。這不代表上游有可用性保證。測試不呼叫正式服務，固定快照與手寫 fixture 的區別見 `tests/fixtures/README.md`。

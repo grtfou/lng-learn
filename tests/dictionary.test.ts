@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import apple from './fixtures/dictionary-apple.json';
 import bank from './fixtures/dictionary-bank.json';
+import bankLive from './fixtures/dictionary-bank-live.json';
 import { FreeDictionaryProvider } from '../apps/server/src/providers/free-dictionary';
 import { DictionaryContentProvider } from '../apps/server/src/providers/dictionary-content';
 import { selectSense, editField } from '../packages/shared/src/provenance';
@@ -22,6 +23,13 @@ describe('正式字典轉接（只用固定 fixture，禁止呼叫正式服務�
     });
     expect(senses[0].pronunciations[0]).toMatchObject({ ipa: '/ˈæp.əl/', recording: { speaker: 'unverified', source: { license: 'BY 3.0 US' } } });
     expect(senses[0].pronunciations[1].recording?.source.license).toBe('BY-SA 3.0');
+  });
+  it('bank 真實多詞條 fixture 含金融與河岸義，不受詞條順序影響', async () => {
+    const senses = await provider(bankLive).lookup({ ...input, word: 'bank' });
+    expect(senses.some((sense) => sense.gloss.includes('financial affairs'))).toBe(true);
+    expect(senses.some((sense) => sense.gloss.includes('edge of river'))).toBe(true);
+    const reversed = await provider([...bankLive].reverse()).lookup({ ...input, word: 'bank' });
+    expect(senses.map((sense) => sense.key).sort()).toEqual(reversed.map((sense) => sense.key).sort());
   });
   it('bank 多義鍵穩定；重新排序不改變既有鍵', async () => {
     const first = await provider(bank).lookup({ ...input, word: 'bank' });
@@ -60,6 +68,20 @@ describe('正式字典轉接（只用固定 fixture，禁止呼叫正式服務�
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response({}, 429, { 'Retry-After': new Date(now.getTime() + 30_000).toUTCString() }));
     await expect(new FreeDictionaryProvider({ fetch: fetcher, clock: () => now }).lookup(input))
       .rejects.toMatchObject({ issue: { code: 'RATE_LIMITED', retryAfterSeconds: 30 } });
+  });
+  it('限流等待從收到回應起算，期限後允許恢復查詢', async () => {
+    let clock = new Date(now);
+    const fetcher = vi.fn<typeof fetch>().mockImplementationOnce(async () => {
+      clock = new Date(now.getTime() + 5000);
+      return response({}, 429, { 'Retry-After': '30' });
+    }).mockResolvedValueOnce(response(apple));
+    const dict = new FreeDictionaryProvider({ fetch: fetcher, clock: () => clock });
+    await expect(dict.lookup(input)).rejects.toMatchObject({ issue: { code: 'RATE_LIMITED' } });
+    clock = new Date(now.getTime() + 30_000);
+    await expect(dict.lookup(input)).rejects.toMatchObject({ issue: { retryAfterSeconds: 5 } });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    clock = new Date(now.getTime() + 35_000);
+    expect(await dict.lookup(input)).toHaveLength(1);
   });
   it('逾時中止且回傳可編輯空白稿', async () => {
     vi.useFakeTimers();

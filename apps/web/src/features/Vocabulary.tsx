@@ -14,6 +14,7 @@ export function Vocabulary({ deck, onSaved }: { deck: Deck; onSaved: () => Promi
   const [senseChoice, setSenseChoice] = useState('');
   const [notes, setNotes] = useState<Note[]>([]);
   const [busy, setBusy] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [listening, setListening] = useState(false);
   const [consent, setConsent] = useState(false);
   const [mode, setMode] = useState<'word' | 'spelling'>('word');
@@ -44,13 +45,13 @@ export function Vocabulary({ deck, onSaved }: { deck: Deck; onSaved: () => Promi
     stop.current = browserSpeech.listen(mode, (text) => { setWord(text); setDraft(null); setStatus('辨識完成，請確認文字後產生預覽。'); }, setError, () => setListening(false));
   }
   async function preview(event?: FormEvent) {
-    event?.preventDefault(); stop.current?.(); setListening(false); setBusy(true); setError(''); setStatus('');
+    event?.preventDefault(); stop.current?.(); setListening(false); setBusy(true); setPreviewing(true); setError(''); setStatus('');
     try {
       const next = await api.draft(word, draftMode);
       if (draft && normalizeWord(draft.content.word) === normalizeWord(next.content.word)) {
         setDraft({ ...next, content: draft.content, senses: next.issue ? draft.senses : next.senses });
       } else { setDraft(next); setSenseChoice(''); }
-    } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); setPreviewing(false); }
   }
   function update(key: ContentField, value: string | string[]) {
     if (key === 'word') { setWord(String(value)); setSenseChoice(''); }
@@ -102,7 +103,7 @@ export function Vocabulary({ deck, onSaved }: { deck: Deck; onSaved: () => Promi
         </fieldset>}
         {content.sense && <p className="selected-sense"><span lang="en">{content.sense.partOfSpeech} · {content.sense.gloss}</span><br /><span className="helper">口音：{content.sense.accent === 'unspecified' ? '未提供，尚未確認為美式' : content.sense.accent}</span></p>}
         <fieldset disabled={busy} className="editor-fields">
-          <div className="two-columns"><label>單字<input lang="en" value={content.word} maxLength={100} onChange={(event) => update('word', event.target.value)} /></label><label>音標<input value={content.ipa} maxLength={200} placeholder="例如 /ˈæp.əl/" onChange={(event) => update('ipa', event.target.value)} /></label></div>
+          <div className="two-columns"><label>單字<input lang="en" value={content.word} maxLength={100} onChange={(event) => update('word', event.target.value)} /></label><label>音標<input lang="en" value={content.ipa} maxLength={200} placeholder="例如 /ˈæp.əl/" onChange={(event) => update('ipa', event.target.value)} /></label></div>
           <label>中文釋義（必填）<input value={content.meaning} maxLength={2000} placeholder="確認詞義與詞性" onChange={(event) => update('meaning', event.target.value)} /></label>
           <div className="two-columns"><label>例句<textarea lang="en" value={content.example} maxLength={2000} onChange={(event) => update('example', event.target.value)} /></label><label>例句翻譯<textarea value={content.exampleTranslation} maxLength={2000} onChange={(event) => update('exampleTranslation', event.target.value)} /></label></div>
           <label>常用片語（每行一個，最多 10 個）<textarea lang="en" value={content.phrases.join('\n')} maxLength={3010} onChange={(event) => update('phrases', event.target.value.split('\n'))} /></label>
@@ -110,7 +111,7 @@ export function Vocabulary({ deck, onSaved }: { deck: Deck; onSaved: () => Promi
         </fieldset>
         <div className="media-preview"><span><Image size={19} /> 圖片服務待串接</span><button type="button" className="secondary" onClick={() => speak(content.word, setError)}><Volume2 size={17} /> 試聽合成語音</button></div><p className="helper">合成語音可能使用系統線上服務，非真人錄音；字典錄音僅記錄來源資訊，下載與播放待後續串接。</p>
         <FieldSources content={content} />
-        <div className="editor-actions"><button className="text-button" disabled={busy} onClick={() => setDraft(null)}>取消預覽</button><button className="primary" disabled={busy || needsSenseChoice || !content.meaning.trim() || !content.word.trim()} onClick={() => void save()}><Check size={17} />{busy ? '儲存中…' : '確認儲存，加入下一個'}</button></div>
+        <div className="editor-actions"><button className="text-button" disabled={busy} onClick={() => setDraft(null)}>取消預覽</button><button className="primary" disabled={busy || needsSenseChoice || !content.meaning.trim() || !content.word.trim()} onClick={() => void save()}><Check size={17} />{busy && !previewing ? '儲存中…' : '確認儲存，加入下一個'}</button></div>
       </div>}
     </section>
     <section className="saved-section"><div className="section-header"><h3>已收藏的單字 <span className="muted">{notes.length}</span></h3><span className="helper">新增單字會立即進入複習</span></div>
