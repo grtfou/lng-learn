@@ -61,16 +61,16 @@
 
 ## P1.1 完成驗證（2026-10-22）
 
-環境仍為 macOS、Node 24.19.0、pnpm 11.25.0。此 Codex shell 需 prepend bundled Node 的 bin 路徑至 PATH；沒有修改系統設定。`pnpm install --frozen-lockfile` 成功；最終 `pnpm check` 成功，含型別、53 項測試、Vite 與 tsup 正式建置。
+環境仍為 macOS、Node 24.19.0、pnpm 11.25.0。此 Codex shell 需 prepend bundled Node 的 bin 路徑至 PATH；沒有修改系統設定。`pnpm install --frozen-lockfile` 成功；審核後最新 `pnpm check` 成功，含型別、57 項測試、Vite 與 tsup 正式建置。
 
 | 測試檔 | 項數 | 主要驗證 |
 | --- | --- | --- |
 | api.test.ts | 11 | P0 HTTP／離線 demo、驗證、本機來源限制、重開持久化 |
 | library.test.ts | 10 | 真正 FSRS、交易回滾、requestId 去重、version 鎖、due 邊界 |
 | dictionary.test.ts | 16 | apple／bank 真實固定快照與手寫 fixture、穩定義項鍵、逐筆錄音授權、未知口音、查無詞、429 秒／日期、逾時、錯誤 JSON／schema／HTML／大小／URL、離線／5xx、限流期限後恢復 |
-| dictionary-api.test.ts | 3 | 選義後保存兩義、同義 409、改詞義項不符拒絕、手動／demo 不連外、正式模式設定 |
+| dictionary-api.test.ts | 4 | 選義後保存兩義、同義 409、改詞義項不符拒絕、手動／demo 不連外、正式模式設定、啟動不預抓資料／輸入才查網路 |
 | migration.test.ts | 3 | v1→v2 一致性備份、原內容／卡片／版本／完整 logs 保留、FK、重開不重跑、損壞資料回滾、逐欄來源寫入失敗回滾 |
-| ui.test.tsx | 10 | P0 競態／重試保留、明確選義、切義保留人工內容、三種來源錯誤及連線重試不清稿、重複衝突保留、改詞清除義項 |
+| ui.test.tsx | 13 | P0 競態／重試保留、明確選義、切義保留人工內容、三種來源錯誤及連線重試不清稿、重複衝突保留、改詞清除義項與自動教材、重查未回傳舊義項的選單一致性、來源切換保留人工內容 |
 
 所有自動測試只使用注入的 fetch、記憶體／暫存 SQLite，不呼叫正式或付費內容服務。快照的手動取得、節錄與授權見 fixtures/README；不把手寫 fixture 當作外部驗證證據。
 
@@ -99,3 +99,16 @@
 - 錄音只有 metadata，沒有音檔快取或播放；沒有開啟麥克風或播放系統發音，不宣稱硬體／母語人士錄音驗證通過。
 - 尚無背景工作、跨刷新草稿保存、其他內容 providers、備份 UI／匯入匯出、已存內容編輯／刪除、每日限額與撤銷評分；依 P1.2 以後施工。
 - 僅使用 Codex 內建瀏覽器，尚未全面驗證 Chrome／Safari／Firefox、螢幕閱讀器與所有鍵盤路徑。
+
+
+## PR 前審核與按需取得（2026-10-22）
+
+- 對完整 P1.1 變更檢查共用契約、逐欄來源、上游錯誤處理、SQLite 升級／備份、去重與 UI；未修改已套用 migration 或 FSRS 規則。
+- 三項回歸先測失敗後修正：改詞會沿用舊 IPA／例句；成功重查移除已選義項後，選單顯示其他義項但保存舊義；切換內容來源未更新未修改欄位。
+- 修正後，改詞清除未修改的自動教材、保留人工文字供校閱；重查舊義項未回傳時仍有明確的保留選項；切換來源僅帶入人工欄位與原出處，其餘套用新資料。
+- 依使用者補充改為預設 free-dictionary：啟動與讀取本機資料不連字典，按產生預覽後才查一個詞。自動測試以 global fetch spy 驗證無預抓行為，demo／manual 也不連網，仍未呼叫正式服務。
+- 再次執行 `pnpm install --frozen-lockfile` 成功；審核後 `pnpm check` 的 57 項測試、型別與正式建置通過。dist 搜尋確認沒有 bank fixture 內容、測試字典 JSON 或音檔。原有三個小型可選 demo 保留，不是預載正式字典。
+- 使用全新 /tmp DB，正式建置未設定 CONTENT_PROVIDER，實際預設即時查詢 apple 成功；選義後修改詞形，舊 IPA 與自動教材清除，人工文字保留。
+- 瀏覽器再驗證 manual→demo：新來源 IPA／例句帶入，人工繁中釋義不變；demo→configured 後，未修改的示範教材移除，重新選字典義項，再保存 apple，來源標字典／已校閱。
+- 舊義項未回傳的特定狀況由固定 UI 回應測試重現，未操控或破壞正式字典資料來製造此狀況。
+- 本輪仍沒有預載字典資料集或音檔；沒有實機聲音驗證。音檔按需下載／播放與核准素材快取屬 P1.2，繁中釋義仍由使用者確認。
