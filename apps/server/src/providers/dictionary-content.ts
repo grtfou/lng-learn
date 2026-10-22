@@ -1,6 +1,6 @@
 import type { Draft } from '../../../../packages/shared/src/contracts';
 import { DictionaryError, type DictionaryProvider } from './dictionary-provider';
-import { DemoContentProvider } from './demo-content';
+import { manualDraft } from './manual-content';
 import type { ContentProvider } from './content-provider';
 
 export class DictionaryContentProvider implements ContentProvider {
@@ -8,9 +8,7 @@ export class DictionaryContentProvider implements ContentProvider {
   constructor(private dictionary: DictionaryProvider) { this.name = dictionary.name; }
   async draft(input: { word: string; language: 'en-US' }, signal?: AbortSignal): Promise<Draft> {
     // 手動空白稿，不以示範內容冒充正式字典查詢結果。
-    const fallback = await new DemoContentProvider().draft({ ...input, word: input.word });
-    const content = { ...fallback.content, ipa: '', meaning: '', example: '', exampleTranslation: '', phrases: [], story: '',
-      source: { kind: 'manual' as const, provider: 'manual', url: null, license: null }, fieldSources: {} };
+    const { content } = manualDraft(input.word);
     try {
       const senses = await this.dictionary.lookup(input, signal);
       if (!senses.length) throw new DictionaryError({ code: 'NOT_FOUND' });

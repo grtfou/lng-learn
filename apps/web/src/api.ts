@@ -16,7 +16,7 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
 export const api = {
   decks: () => request<{ decks: Deck[] }>('/decks'),
   createDeck: (name: string) => request<Deck>('/decks', { name, language: 'en-US' }),
-  draft: (word: string) => request<Draft>('/drafts', { word, language: 'en-US' }),
+  draft: (word: string, mode: 'configured' | 'demo' | 'manual' = 'configured') => request<Draft>('/drafts', { word, language: 'en-US', mode }),
   notes: (deckId: string) => request<{ notes: Note[] }>(`/decks/${deckId}/notes`),
   save: (deckId: string, content: Content) => request<Note>(`/decks/${deckId}/notes`, { content }),
   queue: (deckId: string) => request<{ cards: ReviewCard[]; nextDueAt: string | null }>(`/decks/${deckId}/review`),

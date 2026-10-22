@@ -5,7 +5,9 @@ export const deckInputSchema = z.object({
   name: z.string().trim().min(1).max(80), language: languageSchema.default('en-US'),
 });
 export const wordSchema = z.string().trim().min(1).max(100);
-export const draftInputSchema = z.object({ word: wordSchema, language: languageSchema });
+export const draftInputSchema = z.object({ word: wordSchema, language: languageSchema,
+  mode: z.enum(['configured', 'demo', 'manual']).default('configured'),
+});
 export const sourceSchema = z.object({
   kind: z.enum(['demo', 'manual', 'retrieved', 'generated']),
   provider: z.string().max(100), url: z.url().nullable(), license: z.string().max(200).nullable(),

@@ -4,3 +4,18 @@
 @media(max-width:760px){.app-shell{display:block}.sidebar{height:auto;position:static;border-right:0;border-bottom:1px solid var(--border);padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.brand{margin:0;font-size:21px;grid-column:1/-1}.brand small{font-size:7px}.brand-icon{height:37px;width:37px}.sidebar>.nav-label,.deck-heading,.sidebar-note{display:none}.nav-item{margin:0;padding:9px 12px;font-size:12px}.deck-list{display:flex;gap:6px;grid-column:1/-1;overflow-x:auto}.deck-nav{white-space:nowrap;width:auto;max-width:240px;flex-shrink:0;padding:6px 9px;font-size:11px}.deck-nav small{margin-left:5px}.topbar{height:56px;padding-inline:20px;font-size:10px}.page-content{padding:26px 20px 0}h1{font-size:24px;letter-spacing:0}.title-art{display:none}.muted{font-size:12px}.stats{margin:26px 0;padding:17px 0;grid-template-columns:1fr 1fr 1.45fr}.stats>div{padding:0 14px}.stats strong{font-size:25px}.stats .stat-text{font-size:12px;padding-top:12px}.stats span{font-size:10px}.panel{padding:22px 18px}.panel-intro h2{font-size:18px}.section-header{align-items:flex-start}.section-header h2{font-size:18px;flex-wrap:wrap;gap:8px}.section-header>.primary{font-size:11px;padding:9px 11px}.word-row{flex-wrap:wrap;gap:10px}.word-row input{flex-basis:100%;width:100%;padding-right:55px}.word-row .primary{width:100%;height:42px}.mic-button{right:10px;top:8px}.two-columns{grid-template-columns:1fr;gap:12px}.media-preview{align-items:flex-start;gap:12px;flex-direction:column}.editor-actions{gap:20px}.editor-actions .primary{font-size:11px;padding:10px}.note-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.note-card{padding:15px}.note-card h3{font-size:18px}.saved-section .section-header{gap:10px;align-items:center}.saved-section .helper{max-width:130px;text-align:right;font-size:9px}.study-card{padding:30px 22px}.study-card h2{font-size:40px}.rating-buttons{grid-template-columns:repeat(2,1fr)}.study-status{font-size:10px;gap:12px}.study-status span:last-child{max-width:180px;text-align:right}.notice{flex-wrap:wrap;font-size:11px}.onboarding{gap:15px}.onboarding h3{font-size:12px}.onboarding p{font-size:10px}.onboarding span{margin-bottom:8px}footer{flex-direction:column;align-items:flex-start;gap:7px;font-size:9px;margin-top:30px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 @media(max-width:760px){.sidebar .deck-heading{display:flex;grid-column:1/-1;margin:8px 0 0}.deck-heading .nav-label{margin:0 0 0 6px}}
+
+/* P1.1：詞義與可追溯欄位來源 */
+.provider-choice { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.provider-choice select { max-width: 100%; }
+.sense-picker { border: 1px solid var(--border, #dcded6); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; min-width: 0; }
+.sense-picker select { width: 100%; min-width: 0; }
+.selected-sense { line-height: 1.7; overflow-wrap: anywhere; }
+.field-sources { margin-top: 1rem; font-size: .8rem; line-height: 1.65; overflow-wrap: anywhere; }
+.field-sources summary { cursor: pointer; color: var(--muted, #687266); }
+.field-sources dl { margin: .75rem 0; }
+.field-sources dt { font-weight: 600; }
+.field-sources dd { margin: .2rem 0 .75rem; }
+.field-sources a { color: var(--green, #3c6950); text-decoration: underline; }
+.recording-metadata { border-top: 1px solid #dcded6; padding-top: .5rem; }
+.note-card > .field-sources { display: block; }

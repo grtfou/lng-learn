@@ -7,6 +7,7 @@ import { deckInputSchema, draftInputSchema, noteInputSchema, reviewInputSchema }
 import { openDatabase } from './db/database';
 import { DemoContentProvider } from './providers/demo-content';
 import type { ContentProvider } from './providers/content-provider';
+import { manualDraft } from './providers/manual-content';
 import { AppError, Library } from './services/library';
 
 export function buildApp(options: {
@@ -54,7 +55,12 @@ export function buildApp(options: {
   app.get('/api/health', async () => ({ status: 'ok', contentProvider: provider.name }));
   app.get('/api/decks', async () => ({ decks: library.listDecks() }));
   app.post('/api/decks', async (request, reply) => reply.status(201).send(library.createDeck(deckInputSchema.parse(request.body))));
-  app.post('/api/drafts', async (request) => provider.draft(draftInputSchema.parse(request.body)));
+  app.post('/api/drafts', async (request) => {
+    const input = draftInputSchema.parse(request.body);
+    if (input.mode === 'manual') return manualDraft(input.word);
+    if (input.mode === 'demo') return new DemoContentProvider().draft(input);
+    return provider.draft(input);
+  });
   app.get<{ Params: { deckId: string } }>('/api/decks/:deckId/notes', async (request) => ({ notes: library.listNotes(request.params.deckId) }));
   app.post<{ Params: { deckId: string } }>('/api/decks/:deckId/notes', async (request, reply) => {
     const input = noteInputSchema.parse(request.body);
