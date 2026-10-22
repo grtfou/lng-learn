@@ -11,9 +11,9 @@
 
 P0：建庫 → 語音／文字 → demo／手動預覽 → 校閱保存 → 回想／揭示／四評分 → SQLite 保存完整 FSRS 與歷史。
 
-P1.1：正式免費字典 → 明確選一個義項 → 繁中釋義人工確認 → 詞義、逐欄來源與錄音 metadata 原子保存。apple 真實字典資料、bank 金融／河岸義項已在瀏覽器操作保存；API／UI／遷移 fixture 測試通過。詳見 VALIDATION 與 DICTIONARY。
+P1.1：輸入後即時取得正式免費字典 → 明確選一個義項 → 繁中釋義人工確認 → 詞義、逐欄來源與錄音 metadata 原子保存。apple 真實字典資料、bank 金融／河岸義項已在瀏覽器操作保存；API／UI／遷移 fixture 測試通過。詳見 VALIDATION 與 DICTIONARY。
 
-- `CONTENT_PROVIDER=demo` 預設不連網；可設 free-dictionary，免 key，僅英文詞義。
+- 預設 `CONTENT_PROVIDER=free-dictionary`，輸入後才查詢，啟動不預抓字典／音檔；demo 為可選離線示範。免 key，僅英文詞義。
 - UI／API 可選 demo 或 manual，不需等待來源服務。查詢失敗、重試與切換詞義保留人工文字；切義後仍需人工核對。
 - `DictionaryProvider`／FreeDictionaryProvider 可注入 fetch，測試不連正式服務。字典 10 秒逾時、256 KiB 上限、拒絕重新導向，429 在程序內遵守 Retry-After，無自動重試。
 - v2 migration 自動先建 SQLite 一致性備份，保留舊卡、版本、排程與 logs；舊內容保留 demo 摘要，逐欄標 legacy。

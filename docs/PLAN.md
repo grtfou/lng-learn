@@ -194,10 +194,10 @@ P1 將核准使用的圖片／音檔下載到 `data/media/<sha256>.<ext>`，資�
 - [x] 新增 `DictionaryProvider` 與固定 fixture；選定免金鑰 Free Dictionary API v2，保留實際回應授權。
 - [x] 建立詞義選擇、IPA、詞性、口音與錄音 metadata，保存每欄來源；未知口音／錄音者明列未驗證。
 - [x] 追加 v2 migration，先一致性備份；舊 demo 原內容保留，逐欄標 legacy，去重改為詞義層級，不重設卡片與 logs。
-- [x] 保留預設 demo、UI 的 demo／直接手動離線路徑；不需 key。
+- [x] 預設輸入後即時查詢；保留 UI 的 demo／直接手動離線路徑，不需 key，不預載完整字典或音檔。
 - [x] 驗收：apple 真實查詢、bank 金融／河岸義分別保存；未知詞可手動補；逾時／429／錯誤 JSON 的固定回應與 UI 測試保留草稿；未將音檔標為已驗證母語人士錄音。
 
-完成：2026-10-22。`pnpm check` 通過（53 項測試），真實字典與瀏覽器操作見 [VALIDATION.md](VALIDATION.md)。正式字典只提供英文 gloss，繁中釋義由使用者確認填寫；錄音仍僅 metadata，下載播放與其他內容 provider 屬 P1.2。來源與限制見 [DICTIONARY.md](DICTIONARY.md)。
+完成：2026-10-22。`pnpm check` 通過（57 項測試），真實字典與瀏覽器操作見 [VALIDATION.md](VALIDATION.md)。正式字典只提供英文 gloss，繁中釋義由使用者確認填寫；錄音仍僅 metadata，下載播放與其他內容 provider 屬 P1.2。來源與限制見 [DICTIONARY.md](DICTIONARY.md)。
 
 ### P1.2：媒體、例句與原創內容
 

@@ -19,7 +19,7 @@
 
 名稱 trim 後 1–80 字；word 1–100，ipa 最多 200，meaning／example／exampleTranslation 各 2000，story 最多 4000，phrases 最多 10 個、每個最多 300 字。草稿允許空釋義，保存時釋義必填。
 
-`mode` 預設 configured，依伺服器 `CONTENT_PROVIDER` 使用 demo 或 free-dictionary；demo、manual 明確不連外。正式字典回英文義項，不翻譯繁中。使用者先選一個義項（UI 不預選），填寫確認過的繁中釋義後才保存；也可明確選擇手動義項。預覽不寫入 SQLite。
+`mode` 預設 configured，伺服器 `CONTENT_PROVIDER` 預設 free-dictionary，僅於輸入查詢時連網；可明確切回 demo。demo、manual 明確不連外。正式字典回英文義項，不翻譯繁中。使用者先選一個義項（UI 不預選），填寫確認過的繁中釋義後才保存；也可明確選擇手動義項。預覽不寫入 SQLite。
 
 ```ts
 type Content = {
@@ -61,7 +61,7 @@ type Draft = {
 
 `source` 僅供舊版相容，逐欄 `fieldSources` 才是實際出處。人工編輯保留原出處並設 userEdited=true；未擷取的繁中釋義等欄位標為 manual。省略 sense／fieldSources 的舊請求會補 null／預設來源，儲存與讀取回應包含全部十個欄位的 metadata。舊 note 遷移為 legacy 欄位來源，原 demo 摘要保留。
 
-保存時將校閱的整份 `content` 包在 `{ content }` 中，不傳候選清單。sense.lemma 必須與 word 正規化後相同；改詞形應清除 sense 或重新選義。正規化為 NFKC、小寫、摺疊空白；唯一鍵為 `deck + normalized lemma + sense.key`。無 sense 時使用 `manual` 桶，故舊資料、demo 與手動同詞仍去重；正式不同義項可同庫並存。上游改寫英文 gloss 會產生新鍵，需使用者校閱。相同 key 衝突回 409 DUPLICATE_WORD，不清草稿。
+保存時將校閱的整份 `content` 包在 `{ content }` 中，不傳候選清單。sense.lemma 必須與 word 正規化後相同；改詞形會清除 sense 與尚未人工修改的自動教材；人工欄位保留供校閱。切換來源重新取得未修改欄位，重查不再回傳舊義項時仍明列原選項。正規化為 NFKC、小寫、摺疊空白；唯一鍵為 `deck + normalized lemma + sense.key`。無 sense 時使用 `manual` 桶，故舊資料、demo 與手動同詞仍去重；正式不同義項可同庫並存。上游改寫英文 gloss 會產生新鍵，需使用者校閱。相同 key 衝突回 409 DUPLICATE_WORD，不清草稿。
 
 查無資料、429、逾時、格式錯誤與離線皆回 HTTP 200 的 needs-input 草稿與 issue；不冒充 demo 成功。10 秒逾時、256 KiB 上限、拒絕重新導向；無自動重試。429 的 Retry-After 儲存在 provider 程序內，期限前再次查詢直接回 RATE_LIMITED；重啟不持久保存限流狀態。前端保留編輯內容與已選義項，來源恢復後可手動重試。
 

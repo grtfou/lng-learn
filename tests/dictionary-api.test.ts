@@ -10,7 +10,7 @@ import bank from './fixtures/dictionary-bank.json';
 const fetcher = vi.fn<typeof fetch>();
 const app = () => buildApp({ databasePath: ':memory:', webRoot: '/nonexistent', provider: new DictionaryContentProvider(new FreeDictionaryProvider({ fetch: fetcher })) });
 const apps: ReturnType<typeof app>[] = [];
-afterEach(async () => { await Promise.all(apps.splice(0).map((a) => a.close())); vi.resetAllMocks(); });
+afterEach(async () => { await Promise.all(apps.splice(0).map((a) => a.close())); vi.restoreAllMocks(); vi.resetAllMocks(); });
 
 it('正式字典義項 → 人工繁中釋義 → 保存兩義 → 重複衝突，逐欄來源隨佇列回傳', async () => {
   fetcher.mockResolvedValue(new Response(JSON.stringify(bank)));
@@ -49,8 +49,22 @@ it('正式來源失敗仍可手動保存；手動和 demo 路徑完全不呼叫�
   expect(fetcher).not.toHaveBeenCalled();
 });
 
-it('設定預設 demo、明確啟用免費字典，錯誤模式拒絕啟動', () => {
-  expect(configuredProvider().name).toBe('demo');
+it('預設即時字典，可明確切回 demo，錯誤模式拒絕啟動', () => {
+  expect(configuredProvider().name).toBe('free-dictionary');
+  expect(configuredProvider('demo').name).toBe('demo');
   expect(configuredProvider('free-dictionary').name).toBe('free-dictionary');
   expect(() => configuredProvider('paid')).toThrow('CONTENT_PROVIDER');
+});
+
+it('啟動與讀取本機資料不預抓字典；只有輸入正式查詢時才連網', async () => {
+  const network = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(bank)));
+  const a = buildApp({ databasePath: ':memory:', webRoot: '/nonexistent' }); apps.push(a);
+  expect((await a.inject('/api/health')).json().contentProvider).toBe('free-dictionary');
+  await a.inject('/api/decks');
+  for (const mode of ['manual', 'demo'])
+    await a.inject({ method: 'POST', url: '/api/drafts', payload: { word: 'apple', language: 'en-US', mode } });
+  expect(network).not.toHaveBeenCalled();
+  const response = await a.inject({ method: 'POST', url: '/api/drafts', payload: { word: 'bank', language: 'en-US' } });
+  expect(response.json().status).toBe('dictionary');
+  expect(network).toHaveBeenCalledTimes(1);
 });

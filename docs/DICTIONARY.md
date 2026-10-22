@@ -1,6 +1,6 @@
 # P1.1 字典來源決策
 
-日期：2026-10-22。使用 Free Dictionary API v2，免帳號與 API key；由伺服器查詢，預設仍為 demo。
+日期：2026-10-22。使用 Free Dictionary API v2，免帳號與 API key；由伺服器在使用者輸入後才即時查詢，預設 free-dictionary；啟動不預抓字典或音檔，測試 fixture 不進正式產物。demo 與手動離線路徑仍可明確選擇。
 
 ## 選擇依據
 

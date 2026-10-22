@@ -3,11 +3,12 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from '../apps/server/src/app';
+import { DemoContentProvider } from '../apps/server/src/providers/demo-content';
 import { parseSpelling } from '../packages/shared/src/contracts';
 
 describe('HTTP 契約', () => {
   let app: ReturnType<typeof buildApp>;
-  beforeEach(() => { app = buildApp({ databasePath: ':memory:', webRoot: '/nonexistent' }); });
+  beforeEach(() => { app = buildApp({ databasePath: ':memory:', webRoot: '/nonexistent', provider: new DemoContentProvider() }); });
   afterEach(() => app.close());
 
   it('不需 API key 即可啟動，初始資料為空', async () => {
@@ -66,7 +67,7 @@ describe('HTTP 契約', () => {
 it('磁碟資料與排程在重開伺服器後保留；migration 不會重複執行', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'lng-learn-test-'));
   const databasePath = join(directory, 'test.sqlite');
-  const first = buildApp({ databasePath, webRoot: '/nonexistent' });
+  const first = buildApp({ databasePath, webRoot: '/nonexistent', provider: new DemoContentProvider() });
   let second: ReturnType<typeof buildApp> | undefined;
   try {
     const deck = (await first.inject({ method: 'POST', url: '/api/decks', payload: { name: '持久化' } })).json();
@@ -75,7 +76,7 @@ it('磁碟資料與排程在重開伺服器後保留；migration 不會重複執
     const card = (await first.inject(`/api/decks/${deck.id}/review`)).json().cards[0];
     const result = (await first.inject({ method: 'POST', url: `/api/cards/${card.id}/reviews`, payload: { requestId: '263ed764-765d-4d26-8076-9fc30e7b914f', rating: 4, version: 0 } })).json();
     await first.close();
-    second = buildApp({ databasePath, webRoot: '/nonexistent' });
+    second = buildApp({ databasePath, webRoot: '/nonexistent', provider: new DemoContentProvider() });
     expect((await second.inject('/api/decks')).json().decks[0]).toMatchObject({ id: deck.id, total: 1, due: 0 });
     expect((await second.inject(`/api/decks/${deck.id}/review`)).json().nextDueAt).toBe(result.dueAt);
     expect((await second.inject(`/api/decks/${deck.id}/notes`)).json().notes[0].content.word).toBe('apple');

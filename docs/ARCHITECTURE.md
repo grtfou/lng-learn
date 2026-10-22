@@ -140,4 +140,4 @@ v2 遷移前以 `VACUUM INTO` 產生 `<DATABASE_PATH>.pre-v2-<uuid>.sqlite` 一�
 
 ## 擴充時的建議順序
 
-P1.1 已以固定 fixture 與真實字典完成多義流程，預設 demo；下一步依 P1.2 處理工作生命週期、媒體與其他來源。媒體下載與生成工作皆經 server；昂貴任務改背景 worker／子程序。單人規模尚不需要抽多服務，也不需要引入 Redis、PostgreSQL 或 Kubernetes。
+P1.1 已以固定 fixture 與真實字典完成多義流程，預設在輸入後即時查詢，不預載完整資料集；下一步依 P1.2 處理工作生命週期、媒體與其他來源。媒體下載與生成工作皆經 server；昂貴任務改背景 worker／子程序。單人規模尚不需要抽多服務，也不需要引入 Redis、PostgreSQL 或 Kubernetes。

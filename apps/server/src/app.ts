@@ -6,6 +6,7 @@ import { ZodError } from 'zod';
 import { deckInputSchema, draftInputSchema, noteInputSchema, reviewInputSchema } from '../../../packages/shared/src/contracts';
 import { openDatabase } from './db/database';
 import { DemoContentProvider } from './providers/demo-content';
+import { configuredProvider } from './providers/configured-provider';
 import type { ContentProvider } from './providers/content-provider';
 import { manualDraft } from './providers/manual-content';
 import { AppError, Library } from './services/library';
@@ -17,7 +18,7 @@ export function buildApp(options: {
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 64 * 1024 });
   const db = openDatabase(options.databasePath ?? './data/lng-learn.sqlite');
   const library = new Library(db, options.clock);
-  const provider = options.provider ?? new DemoContentProvider();
+  const provider = options.provider ?? configuredProvider();
   const allowedOrigins = new Set([
     'http://localhost:5173', 'http://127.0.0.1:5173',
     `http://localhost:${options.port ?? 3001}`, `http://127.0.0.1:${options.port ?? 3001}`,
