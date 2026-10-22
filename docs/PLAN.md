@@ -116,16 +116,16 @@ flowchart TD
   LIB --> FSRS[FSRS Adapter]
   LIB --> DB[(SQLite)]
   API --> CONTENT[ContentProvider]
-  CONTENT --> DEMO[目前：DemoProvider]
-  CONTENT -. P1 .-> DICT[字典／例句來源]
-  CONTENT -. P1 .-> GEN[原創內容生成]
-  CONTENT -. P1 .-> MEDIA[圖片與真人音檔]
-  MEDIA -. P1 .-> FILES[本機媒體檔案]
+  CONTENT --> DEMO[DemoProvider]
+  CONTENT --> DICT[P1.1：DictionaryProvider]
+  CONTENT -. P1.2 .-> GEN[例句／原創內容生成]
+  CONTENT -. P1.2 .-> MEDIA[圖片與錄音]
+  MEDIA -. P1.2 .-> FILES[本機媒體檔案]
 ```
 
 目前資料：`decks → notes → cards → review_logs`，migration 獨立版本化。Note 保存學習內容；Card 保存一種測驗提示的排程；ReviewLog 保存不可隨意覆寫的學習事件。不要將這三者混為一份可任意覆寫的 JSON。
 
-P0 一 note 一 card，以 content JSON 迭代文字欄位；P1 拆出 `senses`、`field_sources`、`media_assets`、`generation_jobs`。P2 允許一 note 多種 card，維持各自的記憶狀態。詳見架構資料表。
+目前一 note 一 card；P1.1 已拆出 `senses`、`field_sources` 並保留 content JSON 快照。P1.2 將新增 `media_assets`、`generation_jobs`。P2 允許一 note 多種 card，維持各自的記憶狀態。詳見架構資料表。
 
 ## 6. 正式內容取得與生成
 
@@ -141,7 +141,7 @@ P0 一 note 一 card，以 content JSON 迭代文字欄位；P1 拆出 `senses`�
 | PronunciationProvider | lemma、口音 | 真人音檔優先；找不到才回明確的 TTS 備援 |
 | ContentProvider | 輸入詞與設定 | 協調以上來源、回傳各欄位狀態與可校閱草稿 |
 
-目前只有最後一個介面與 demo 實作。P1 先做字典，再加入其他 providers；不要一次串全部供應商。
+目前已實作 ContentProvider（demo 與字典草稿協調）及 DictionaryProvider（Free Dictionary API v2）。正式例句／圖片／原創內容與錄音播放 provider 留 P1.2。
 
 ### 6.2 來源選擇與品質
 
@@ -191,11 +191,13 @@ P1 將核准使用的圖片／音檔下載到 `data/media/<sha256>.<ext>`，資�
 
 依賴：P0。
 
-- 新增 `DictionaryProvider` 與測試 fixture；先選定一個授權明確來源。
-- 建立詞義選擇、IPA、詞性、口音、錄音 metadata，保存每欄來源。
-- 新增 migration；既有 demo note 保留原內容，標示 legacy source，去重改為詞義層級。
-- 替換 demo 時仍保留 demo/offline 路徑，避免 key 缺漏導致整個 app 無法用。
-- 驗收：apple 可取得真實字典資料；bank 能選金融／河岸義；不存在的詞可手動補；逾時、429、錯誤 JSON 不清空草稿。無真人錄音時不誤標。
+- [x] 新增 `DictionaryProvider` 與固定 fixture；選定免金鑰 Free Dictionary API v2，保留實際回應授權。
+- [x] 建立詞義選擇、IPA、詞性、口音與錄音 metadata，保存每欄來源；未知口音／錄音者明列未驗證。
+- [x] 追加 v2 migration，先一致性備份；舊 demo 原內容保留，逐欄標 legacy，去重改為詞義層級，不重設卡片與 logs。
+- [x] 保留預設 demo、UI 的 demo／直接手動離線路徑；不需 key。
+- [x] 驗收：apple 真實查詢、bank 金融／河岸義分別保存；未知詞可手動補；逾時／429／錯誤 JSON 的固定回應與 UI 測試保留草稿；未將音檔標為已驗證母語人士錄音。
+
+完成：2026-10-22。`pnpm check` 通過（53 項測試），真實字典與瀏覽器操作見 [VALIDATION.md](VALIDATION.md)。正式字典只提供英文 gloss，繁中釋義由使用者確認填寫；錄音仍僅 metadata，下載播放與其他內容 provider 屬 P1.2。來源與限制見 [DICTIONARY.md](DICTIONARY.md)。
 
 ### P1.2：媒體、例句與原創內容
 

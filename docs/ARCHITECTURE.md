@@ -10,7 +10,7 @@ browser
              ↓ /api
   Fastify → Zod → Library / ContentProvider
                        ↓       ↓
-                   ts-fsrs   DemoProvider
+                   ts-fsrs   Demo / DictionaryContentProvider → DictionaryProvider
                        ↓
                    SQLite
 ```
@@ -20,7 +20,7 @@ browser
 - `Library` 保有資料交易與核心規則。P0 為縮小層次，參數化 SQL 直接位於服務；查詢複雜化時再抽 repository，避免先做空泛抽象。
 - `scheduler.ts` 封裝 FSRS 與日期序列化，對前端不暴露套件實作。
 - `packages/shared/src/contracts.ts` 為 HTTP 輸入的 Zod schema 與共用型別；目前前端回應採 TypeScript 型別，正式 provider 回應必須另外執行 runtime validation。
-- `providers/content-provider.ts` 是替換內容來源的接點；只有 demo 已實作。其他 provider 規格先寫在計畫，不建立無法工作的空殼 class。
+- `providers/content-provider.ts` 協調可編輯草稿；demo 與 DictionaryContentProvider 已實作。後者依 DictionaryProvider 介面串接 Free Dictionary API v2，fetch 可注入 fixture。其他例句／圖片／生成 provider 留在 P1.2。
 
 ## 為什麼這樣選
 
@@ -43,6 +43,8 @@ browser
 erDiagram
   decks ||--o{ notes : contains
   notes ||--|| cards : tests
+  notes ||--o| senses : identifies
+  notes ||--|{ field_sources : attributes
   cards ||--o{ review_logs : records
   decks {
     text id PK
@@ -54,6 +56,7 @@ erDiagram
     text id PK
     text deck_id FK
     text normalized_word
+    text sense_key
     text content_json
     text created_at
   }
@@ -81,7 +84,7 @@ P1.1 migration v2 已加入 `notes.sense_key`、`senses`（note_id、lemma、sen
 
 `schema_migrations` 保存已套用版本。SQLite 啟用 foreign keys、WAL 與 busy_timeout；每個 migration 在交易內執行。P0 未提供刪除，外鍵未設 cascade，避免後續直接刪除卡片造成歷史靜默消失。
 
-`content_json` 含 word、ipa、meaning、example、exampleTranslation、phrases、story、image、audio、source。P1.1 的 image/audio 仍為 null，source 保留 P0 相容欄位；實際出處以 fieldSources 與 sense.pronunciations 的各筆來源為準。
+`content_json` 含 word、ipa、meaning、example、exampleTranslation、phrases、story、image、audio、source、sense、fieldSources。P1.1 的 image/audio 仍為 null，source 保留 P0 相容欄位；實際出處以 fieldSources 與 sense.pronunciations 的各筆來源為準。
 
 `cards.state_json` 完整保存 FSRS card；`due_at` 是它的冗餘索引欄位，兩者必須同交易更新。日期統一 UTC `toISOString()`，固定格式使字串排序與時間排序一致。
 
@@ -116,8 +119,8 @@ P1.1 migration v2 已加入 `notes.sense_key`、`senses`（note_id、lemma、sen
 | 資料 | 欄位／索引重點 |
 | --- | --- |
 | deck 設定 | nativeLanguage、accent、retention、newPerDay、reviewPerDay、timezone |
-| notes / senses | lemma、senseKey、partOfSpeech、gloss、updatedAt；唯一鍵 deck+lemma+senseKey |
-| field_sources | noteId、fieldPath、kind、provider、sourceUrl、author、license、licenseUrl、retrievedAt、model、promptVersion、userEdited |
+| notes / senses（P1.1 已完成） | lemma、senseKey、partOfSpeech、gloss、accent、pronunciations；唯一鍵 deck+lemma+senseKey；內容編輯與 updatedAt 留 P1.3 |
+| field_sources（P1.1 已完成） | noteId、fieldPath、kind、provider、sourceUrl、author、license、licenseUrl、retrievedAt、model、promptVersion、userEdited |
 | media_assets | id、relativePath、sha256、mime、size、kind、來源與授權；hash 去重 |
 | note_media | noteId、assetId、用途與排序 |
 | drafts / generation_jobs | 草稿內容、逐欄狀態、cacheKey、attempt、leaseUntil、errorCode、取消狀態 |
@@ -137,4 +140,4 @@ v2 遷移前以 `VACUUM INTO` 產生 `<DATABASE_PATH>.pre-v2-<uuid>.sqlite` 一�
 
 ## 擴充時的建議順序
 
-先用真實字典的固定 fixture 建立 provider contract 與多義字流程，再接網路。媒體下載與生成工作皆經 server；昂貴任務改背景 worker／子程序。單人規模尚不需要抽多服務，也不需要引入 Redis、PostgreSQL 或 Kubernetes。
+P1.1 已以固定 fixture 與真實字典完成多義流程，預設 demo；下一步依 P1.2 處理工作生命週期、媒體與其他來源。媒體下載與生成工作皆經 server；昂貴任務改背景 worker／子程序。單人規模尚不需要抽多服務，也不需要引入 Redis、PostgreSQL 或 Kubernetes。

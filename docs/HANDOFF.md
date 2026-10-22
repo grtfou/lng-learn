@@ -1,55 +1,58 @@
 # 接手開發清單
 
-## 先讀哪些檔案
+## 每次開始或中斷後恢復
 
-1. 根目錄 `AGENTS.md`、`README.md`。
-2. `docs/PLAN.md` 的流程、P1 工作順序與驗收。
-3. `docs/ARCHITECTURE.md` 的資料表與交易不變條件。
-4. `docs/API.md` 與 `packages/shared/src/contracts.ts`。
-5. `docs/VALIDATION.md` 瞭解本次已驗證與未驗證邊界。
+1. 讀根目錄 `AGENTS.md`、`PROGRESS.md`。
+2. 查看 `git status`、`git log -7 --oneline`，從最後未完成項目續做。
+3. 閱讀 README、PLAN、ARCHITECTURE、API、VALIDATION。
+4. 每個明確小階段更新 PROGRESS 並 commit；不重做已完成工作。
 
-## 已存在的可操作切片
+## 已交付的切片
 
-全新資料庫 → 建立英語單字庫 → 文字或受支援的瀏覽器語音輸入 → demo／手動內容預覽 → 修改並確認儲存 → 翻卡 → 評分 → SQLite 保存 FSRS 狀態 → 重開程式繼續使用。
+P0：建庫 → 語音／文字 → demo／手動預覽 → 校閱保存 → 回想／揭示／四評分 → SQLite 保存完整 FSRS 與歷史。
 
-只內建 `apple`、`journey`、`curious` 的音標、釋義、例句、片語與故事。沒有外部 API key、沒有任何正式字典／圖片／錄音／LLM 呼叫。其他字能手動建卡。無刪除、已存卡片編輯、匯入匯出或雲端功能。
+P1.1：正式免費字典 → 明確選一個義項 → 繁中釋義人工確認 → 詞義、逐欄來源與錄音 metadata 原子保存。apple 真實字典資料、bank 金融／河岸義項已在瀏覽器操作保存；API／UI／遷移 fixture 測試通過。詳見 VALIDATION 與 DICTIONARY。
 
-## 下一個建議任務：P1.1
+- `CONTENT_PROVIDER=demo` 預設不連網；可設 free-dictionary，免 key，僅英文詞義。
+- UI／API 可選 demo 或 manual，不需等待來源服務。查詢失敗、重試與切換詞義保留人工文字；切義後仍需人工核對。
+- `DictionaryProvider`／FreeDictionaryProvider 可注入 fetch，測試不連正式服務。字典 10 秒逾時、256 KiB 上限、拒絕重新導向，429 在程序內遵守 Retry-After，無自動重試。
+- v2 migration 自動先建 SQLite 一致性備份，保留舊卡、版本、排程與 logs；舊內容保留 demo 摘要，逐欄標 legacy。
+- 同庫 `normalized lemma + senseKey` 唯一；無正式義項共用 manual 桶。字典 key 由詞形／詞性／英文 gloss 雜湊，上游改寫會換鍵，沒有跨版本同義辨識。
+- API 的 source 為 P0 相容摘要；真正出處看 fieldSources 與 sense.pronunciations，不可只看 source.kind。
+- 字典未提供繁中翻譯、個別作者或可靠口音／錄音者資訊。未知值保持 null／unspecified／unverified；音檔只有 metadata，未下載／播放。
 
-可以將下列內容交給 Codex：
+## 下一個獨立任務：P1.2
 
-> 閱讀 AGENTS.md、docs/PLAN.md、ARCHITECTURE.md、API.md 與 VALIDATION.md，完成 P1.1「正式字典、義項與欄位來源」。先檢查目前實作與測試，保留 demo 模式及使用者現有資料。評估並選擇一個有明確授權與文件的字典來源，先建立固定測試 fixture，再實作 DictionaryProvider、詞義選擇與欄位來源 migration。不要接付費 LLM，也不要一次實作整個 P1。apple 應取得可追溯字典資料，bank 能選擇不同義項；查無結果、逾時、429、格式錯誤時仍可手動填寫且不清稿。完成後執行 pnpm check、測操作流程並更新文件。
+P1.1 已完成，AGENTS.md 的下一步已更新為 P1.2。下一次先依 PROGRESS 確認工作，再閱讀 PLAN 的 P1.2「媒體、例句與原創內容」。
 
-預期修改接點：
+建議任務：
 
-- `packages/shared/src/contracts.ts`：加入 sense、partOfSpeech、field source schemas，保留舊資料讀取或明確遷移。
-- `apps/server/src/providers/`：新增字典 contract、fixture provider 與正式來源轉接；server 驗證外部回應。
-- `apps/server/src/db/migrations.ts`：追加 v2，不修改 v1；去重鍵改為 deck+lemma+senseKey。
-- `apps/server/src/services/library.ts`：儲存詞義與來源、既有 demo 回填、交易不變條件。
-- `apps/web/src/features/Vocabulary.tsx`：辨識文字確認、詞義選擇與逐欄出處。
-- `tests/`：相容 migration、多義字、來源 metadata、外部服務失敗與手動備援。
+> 保留 P0/P1.1 資料與行為，依 PLAN 完成一個 P1.2 可驗收小切片。先建立 SQLite 工作生命週期與逐欄狀態／取消／重試／重啟恢復，使用固定 fixture，再串接一個來源。媒體需獨立授權 metadata、HTTPS 網域允許清單、每跳重導向／私網檢查、大小／MIME／逾時限制、本機快取與 hash。不要只用遠端 URL 冒充離線保存，也不要把未驗證錄音者標為母語人士。付費 LLM 或新服務啟用前先確認必要設定，不自行註冊。每個小階段 commit、更新 PROGRESS、文件與計畫。
 
-## 維持的行為
+預期接點：
 
-- 不需帳號、外部資料庫或付費憑證即可啟動 demo。
-- 來源失敗時使用者仍能存已確認的詞與釋義。
-- 內容預覽不自動保存；正式內容需讓使用者校閱。
-- 不把合成語音標成人類錄音；缺 IPA／音檔時誠實表示缺漏。
-- 卡片與 review log 不能被內容更新清除或重設。
-- 同一評分重試使用原 requestId；不同分頁的 version 衝突不能盲目覆蓋。
-- 複習遵守先回想、揭示、評分，未到期不提前出現。
+- shared/contracts 與 provenance：延伸欄位工作狀態、媒體契約，不丟掉現有出處與人工修改旗標。
+- providers：新增例句／圖片／可選生成來源；字典回應中有例句只代表字典附帶內容，不代表獨立 ExampleProvider 已完成。
+- db/migrations：追加 v3 以後，不改 v1／v2；worker lease 與重啟恢復須可測試。
+- Library／新服務：媒體與 note 關聯交易；內容變動不得重設 FSRS。
+- Vocabulary／FieldSources／Study：逐欄工作進度、取消／重試、圖片候選、可信標示與快取播放。
 
-## 技術注意事項
+## 維持的規則與限制
 
-- Node 24.x 的內建 `node:sqlite` 不需要另外安裝 `sqlite` 或 `sqlite3`。tsup 設定的 `removeNodeProtocol: false` 必須保留，否則建置產物可能變成錯誤的 `import 'sqlite'`。
-- 所有服務從專案根目錄執行，預設資料在 `data/`。測試與 UI 驗證請用獨立暫存 DATABASE_PATH。
-- `pnpm check` 會跑型別、測試、建置；正式產物仍需 `pnpm start` 實際啟動確認。
-- `tests/ui.test.tsx` 使用 happy-dom 與 React Testing Library，覆蓋慢速列表回應、建立成功狀態與評分重試。保留舊回應失效／合併規則，避免新增功能時重新引入競態。
-- `SpeechInput` 與 `ContentProvider` 是目前已存在介面；PLAN 其他介面是下一階段設計，不是已完成檔案。
-- 開發 Vite proxy 預設 3001；更動 API 的 PORT 必須同步代理埠。
-- P0 前端 view 使用 React local state，刷新會回單字庫。尚無路由、草稿恢復、背景工作或完整會話恢復。
-- 套件採精確版本與 lockfile；變更排程套件前先確認歷史資料與參數相容性。
+- 本機單人使用，無帳號、同步或公開部署。
+- 只在使用者確認時保存；任何來源失敗仍可手動建卡。
+- 不覆寫人工修改；舊回應不能覆蓋新狀態。
+- 複習先回想、揭示、評分；原 requestId 重試與 version 樂觀鎖繼續保留。
+- 未到期卡不提前出現，內容編輯不清除卡片／歷史。
+- 目前刷新仍會遺失未保存草稿，P1.3 才做自動暫存；本次只有同畫面重查保留。
+- 麥克風、系統發音、錄音播放與多瀏覽器完整相容性尚未實機驗證。
+- 無已存單字編輯／刪除、搜尋、匯出／匯入、背景工作、每日限額與撤銷評分。
 
-## 暫不擴大範圍
+## 執行與驗證
 
-多帳號、公開部署、同步、訂閱付費、Anki 完整格式相容、所有語言、個人化參數最佳化都沒有必要先做。先讓單一語言、單一字典來源、可追溯資料與正確複習流程可靠運作。
+- Node 24.14+ 的 24.x、pnpm 11.25.0，根目錄 `pnpm install --frozen-lockfile` → `pnpm check`。
+- 目前 Codex shell 需 prepend `/Users/quokka/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin` 至 PATH；已驗證 Node 24.19.0，不需改系統設定。
+- `tsup.config.ts` 的 removeNodeProtocol=false 必須保留，否則正式 node:sqlite import 可能被錯誤改寫。
+- UI／測試用暫存 DATABASE_PATH，不碰使用者 data/；正式建置仍需實際啟動與瀏覽器操作。
+- Vite proxy 預設 3001，更改 PORT 時同步代理。伺服器僅綁 127.0.0.1。
+- 全部 provider 測試固定 fixture；DICTIONARY 與 fixtures/README 區分真實快照、手寫資料與外部不穩定性。
