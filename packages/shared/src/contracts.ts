@@ -5,7 +5,9 @@ export const deckInputSchema = z.object({
   name: z.string().trim().min(1).max(80), language: languageSchema.default('en-US'),
 });
 export const wordSchema = z.string().trim().min(1).max(100);
-export const draftInputSchema = z.object({ word: wordSchema, language: languageSchema });
+export const draftInputSchema = z.object({ word: wordSchema, language: languageSchema,
+  mode: z.enum(['configured', 'demo', 'manual']).default('configured'),
+});
 export const sourceSchema = z.object({
   kind: z.enum(['demo', 'manual', 'retrieved', 'generated']),
   provider: z.string().max(100), url: z.url().nullable(), license: z.string().max(200).nullable(),
@@ -15,6 +17,30 @@ export const assetSchema = z.object({
   attribution: z.string().max(500), license: z.string().max(200),
   kind: z.enum(['image', 'human-audio', 'synthetic-audio']),
 });
+export const httpsUrlSchema = z.url().max(2000).refine((url) => new URL(url).protocol === 'https:', '來源必須使用 HTTPS');
+export const contentFields = ['word', 'ipa', 'meaning', 'example', 'exampleTranslation', 'phrases', 'story', 'image', 'audio', 'sense'] as const;
+export const fieldSourceSchema = z.object({
+  kind: z.enum(['demo', 'manual', 'retrieved', 'generated', 'legacy']),
+  provider: z.string().max(100), url: httpsUrlSchema.nullable(),
+  author: z.string().max(500).nullable(), license: z.string().max(200).nullable(),
+  licenseUrl: httpsUrlSchema.nullable(), retrievedAt: z.iso.datetime().nullable(),
+  model: z.string().max(100).nullable(), promptVersion: z.string().max(100).nullable(),
+  userEdited: z.boolean(), status: z.enum(['pending', 'ready', 'missing', 'error']),
+});
+export const pronunciationSchema = z.object({
+  ipa: z.string().max(200), accent: z.enum(['en-US', 'en-GB', 'unspecified']),
+  source: fieldSourceSchema,
+  recording: z.object({
+    url: httpsUrlSchema, source: fieldSourceSchema, speaker: z.literal('unverified'),
+  }).nullable(),
+});
+export const senseSchema = z.object({
+  key: z.string().min(1).max(160), lemma: wordSchema,
+  partOfSpeech: z.string().trim().max(100), gloss: z.string().trim().min(1).max(2000),
+  accent: z.enum(['en-US', 'en-GB', 'unspecified']),
+  pronunciations: z.array(pronunciationSchema).max(20), source: fieldSourceSchema,
+});
+export const dictionarySenseSchema = senseSchema.extend({ example: z.string().max(2000) });
 export const contentSchema = z.object({
   word: wordSchema, ipa: z.string().trim().max(200),
   meaning: z.string().trim().max(2000),
@@ -23,9 +49,12 @@ export const contentSchema = z.object({
   story: z.string().trim().max(4000),
   image: assetSchema.nullable(), audio: assetSchema.nullable(),
   source: sourceSchema,
+  sense: senseSchema.nullable().default(null),
+  fieldSources: z.partialRecord(z.enum(contentFields), fieldSourceSchema).default({}),
 });
 export const noteInputSchema = z.object({
-  content: contentSchema.refine((content) => content.meaning.length > 0, '請先填寫中文釋義'),
+  content: contentSchema.refine((content) => content.meaning.length > 0, '請先填寫中文釋義')
+    .refine((content) => !content.sense || normalizeWord(content.word) === normalizeWord(content.sense.lemma), '單字已改變，請重新選擇詞義或改用手動義項'),
 });
 export const ratingSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
 export const reviewInputSchema = z.object({
@@ -33,10 +62,15 @@ export const reviewInputSchema = z.object({
 });
 
 export type Content = z.infer<typeof contentSchema>;
+export type FieldSource = z.infer<typeof fieldSourceSchema>;
+export type ContentField = typeof contentFields[number];
+export type Sense = z.infer<typeof senseSchema>;
+export type DictionarySense = z.infer<typeof dictionarySenseSchema>;
+export type DictionaryIssue = { code: 'NOT_FOUND' | 'RATE_LIMITED' | 'TIMEOUT' | 'INVALID_RESPONSE' | 'UNAVAILABLE'; retryAfterSeconds?: number };
 export type Rating = z.infer<typeof ratingSchema>;
 export type Deck = { id: string; name: string; language: 'en-US'; createdAt: string; total: number; due: number };
 export type Note = { id: string; deckId: string; content: Content; createdAt: string };
-export type Draft = { content: Content; status: 'demo' | 'needs-input'; notice: string };
+export type Draft = { content: Content; status: 'demo' | 'needs-input' | 'dictionary'; notice: string; senses?: DictionarySense[]; issue?: DictionaryIssue };
 export type ReviewCard = {
   id: string; noteId: string; version: number; dueAt: string; content: Content;
 };

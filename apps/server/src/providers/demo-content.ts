@@ -1,6 +1,7 @@
 import type { ContentProvider } from './content-provider';
 import type { Content } from '../../../../packages/shared/src/contracts';
 import { normalizeWord } from '../../../../packages/shared/src/contracts';
+import { completeSources } from '../../../../packages/shared/src/provenance';
 
 const lexicon: Partial<Record<string, Pick<Content, 'ipa' | 'meaning' | 'example' | 'exampleTranslation' | 'phrases' | 'story'>>> = {
   apple: {
@@ -32,12 +33,12 @@ export class DemoContentProvider implements ContentProvider {
       status: fixture ? 'demo' as const : 'needs-input' as const,
       notice: fixture
         ? '這是內建示範內容，並非即時網路查詢。圖片與真人音檔尚未串接。請校閱後儲存。'
-        : '此單字沒有示範資料。請手動填寫釋義；正式字典與內容生成服務將於後續實作。',
-      content: {
+        : '此單字沒有示範資料。請手動填寫釋義；可設定正式字典模式取得英文義項。',
+      content: completeSources({
         word: normalized, ipa: '', meaning: '', example: '', exampleTranslation: '', phrases: [], story: '',
-        ...fixture, image: null, audio: null,
+        ...fixture, image: null, audio: null, sense: null, fieldSources: {},
         source: { kind: fixture ? 'demo' as const : 'manual' as const, provider: 'demo', url: null, license: null },
-      },
+      }),
     };
   }
 }

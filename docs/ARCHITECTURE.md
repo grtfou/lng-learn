@@ -10,7 +10,7 @@ browser
              ↓ /api
   Fastify → Zod → Library / ContentProvider
                        ↓       ↓
-                   ts-fsrs   DemoProvider
+                   ts-fsrs   Demo / DictionaryContentProvider → DictionaryProvider
                        ↓
                    SQLite
 ```
@@ -20,7 +20,7 @@ browser
 - `Library` 保有資料交易與核心規則。P0 為縮小層次，參數化 SQL 直接位於服務；查詢複雜化時再抽 repository，避免先做空泛抽象。
 - `scheduler.ts` 封裝 FSRS 與日期序列化，對前端不暴露套件實作。
 - `packages/shared/src/contracts.ts` 為 HTTP 輸入的 Zod schema 與共用型別；目前前端回應採 TypeScript 型別，正式 provider 回應必須另外執行 runtime validation。
-- `providers/content-provider.ts` 是替換內容來源的接點；只有 demo 已實作。其他 provider 規格先寫在計畫，不建立無法工作的空殼 class。
+- `providers/content-provider.ts` 協調可編輯草稿；demo 與 DictionaryContentProvider 已實作。後者依 DictionaryProvider 介面串接 Free Dictionary API v2，fetch 可注入 fixture。其他例句／圖片／生成 provider 留在 P1.2。
 
 ## 為什麼這樣選
 
@@ -43,6 +43,8 @@ browser
 erDiagram
   decks ||--o{ notes : contains
   notes ||--|| cards : tests
+  notes ||--o| senses : identifies
+  notes ||--|{ field_sources : attributes
   cards ||--o{ review_logs : records
   decks {
     text id PK
@@ -54,6 +56,7 @@ erDiagram
     text id PK
     text deck_id FK
     text normalized_word
+    text sense_key
     text content_json
     text created_at
   }
@@ -77,9 +80,11 @@ erDiagram
   }
 ```
 
+P1.1 migration v2 已加入 `notes.sense_key`、`senses`（note_id、lemma、sense_key、part_of_speech、gloss、accent、pronunciations_json）與 `field_sources`（逐欄來源、作者、授權、取得時間、人工修改與欄位狀態）。`notes.normalized_word` 保存正規化 lemma，唯一鍵為 `(deck_id, normalized_word, sense_key)`；無正式義項的手動／demo／legacy 共用 `manual` 義項鍵。內容 JSON 是 API 快照，與結構化 metadata 於同一交易寫入。
+
 `schema_migrations` 保存已套用版本。SQLite 啟用 foreign keys、WAL 與 busy_timeout；每個 migration 在交易內執行。P0 未提供刪除，外鍵未設 cascade，避免後續直接刪除卡片造成歷史靜默消失。
 
-`content_json` 含 word、ipa、meaning、example、exampleTranslation、phrases、story、image、audio、source。P0 的 image/audio 固定 null，source 是整卡的示範／手動來源。這不足以表示正式多來源內容，P1 必須遷移。
+`content_json` 含 word、ipa、meaning、example、exampleTranslation、phrases、story、image、audio、source、sense、fieldSources。P1.1 的 image/audio 仍為 null，source 保留 P0 相容欄位；實際出處以 fieldSources 與 sense.pronunciations 的各筆來源為準。
 
 `cards.state_json` 完整保存 FSRS card；`due_at` 是它的冗餘索引欄位，兩者必須同交易更新。日期統一 UTC `toISOString()`，固定格式使字串排序與時間排序一致。
 
@@ -91,7 +96,7 @@ erDiagram
 
 - 預覽不落盤，P0 刷新會遺失草稿；草稿保存是 P1 工作。
 - 保存前 server 驗證詞與非空釋義，最多 64 KiB 的 JSON。
-- 正規化為 NFKC、前後 trim、連續空白摺疊、英文小寫，同庫唯一。
+- 正規化為 NFKC、前後 trim、連續空白摺疊、英文小寫，同庫同義項唯一。
 - note + new card 使用同一交易；新卡 due=serverNow，version=0。
 - 首階段限制 en-US，其他語言在 API 直接拒絕，不能默默沿用英文正規化。
 
@@ -109,19 +114,19 @@ erDiagram
 
 目前「揭示後才評分」是 UI 規則，API 未發放揭示 token；在單人可信任本機環境，使用者仍可直接呼叫 API。若未來需要嚴格會話順序，可加入 server session，不把當前 UI 條件視為防作弊機制。
 
-## P1 遷移目標（尚未實作）
+## P1 遷移目標（P1.1 詞義與逐欄來源已實作）
 
 | 資料 | 欄位／索引重點 |
 | --- | --- |
 | deck 設定 | nativeLanguage、accent、retention、newPerDay、reviewPerDay、timezone |
-| notes / senses | lemma、senseKey、partOfSpeech、gloss、updatedAt；唯一鍵 deck+lemma+senseKey |
-| field_sources | noteId、fieldPath、kind、provider、sourceUrl、author、license、licenseUrl、retrievedAt、model、promptVersion、userEdited |
+| notes / senses（P1.1 已完成） | lemma、senseKey、partOfSpeech、gloss、accent、pronunciations；唯一鍵 deck+lemma+senseKey；內容編輯與 updatedAt 留 P1.3 |
+| field_sources（P1.1 已完成） | noteId、fieldPath、kind、provider、sourceUrl、author、license、licenseUrl、retrievedAt、model、promptVersion、userEdited |
 | media_assets | id、relativePath、sha256、mime、size、kind、來源與授權；hash 去重 |
 | note_media | noteId、assetId、用途與排序 |
 | drafts / generation_jobs | 草稿內容、逐欄狀態、cacheKey、attempt、leaseUntil、errorCode、取消狀態 |
 | review events | 撤銷事件與被撤銷紀錄 id；維持不可變歷史與最後事件限制 |
 
-遷移先備份，從舊 content_json 回填文字，`source.kind=demo` 原樣保留，其他欄位以 legacy source 標記，不把示範資料改成 retrieved。既有卡片與 logs 不重設。P2 多卡型時移除 `cards.note_id` unique，改為 `(note_id, template)`，保持各卡獨立狀態。
+v2 遷移前以 `VACUUM INTO` 產生 `<DATABASE_PATH>.pre-v2-<uuid>.sqlite` 一致性備份（僅既有磁碟 DB）；新資料庫與記憶體 DB 不建立備份。v1 SQL 保持原樣，v2 在交易內重建 notes 唯一鍵，暫停外鍵檢查後於提交前執行 foreign_key_check，成功才重新啟用 foreign_keys。遷移失敗回滾、停止啟動，不跳過損壞資料。舊 content_json 原有內容與 `source.kind=demo` 原樣保留，新增逐欄來源標為 legacy，不改成 retrieved。既有卡片、版本與 logs 不重設。P2 多卡型時移除 `cards.note_id` unique，改為 `(note_id, template)`，保持各卡獨立狀態。
 
 ## 本機資料與外部邊界
 
@@ -135,4 +140,4 @@ erDiagram
 
 ## 擴充時的建議順序
 
-先用真實字典的固定 fixture 建立 provider contract 與多義字流程，再接網路。媒體下載與生成工作皆經 server；昂貴任務改背景 worker／子程序。單人規模尚不需要抽多服務，也不需要引入 Redis、PostgreSQL 或 Kubernetes。
+P1.1 已以固定 fixture 與真實字典完成多義流程，預設在輸入後即時查詢，不預載完整資料集；下一步依 P1.2 處理工作生命週期、媒體與其他來源。媒體下載與生成工作皆經 server；昂貴任務改背景 worker／子程序。單人規模尚不需要抽多服務，也不需要引入 Redis、PostgreSQL 或 Kubernetes。

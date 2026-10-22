@@ -6,7 +6,9 @@ import { ZodError } from 'zod';
 import { deckInputSchema, draftInputSchema, noteInputSchema, reviewInputSchema } from '../../../packages/shared/src/contracts';
 import { openDatabase } from './db/database';
 import { DemoContentProvider } from './providers/demo-content';
+import { configuredProvider } from './providers/configured-provider';
 import type { ContentProvider } from './providers/content-provider';
+import { manualDraft } from './providers/manual-content';
 import { AppError, Library } from './services/library';
 
 export function buildApp(options: {
@@ -16,7 +18,7 @@ export function buildApp(options: {
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 64 * 1024 });
   const db = openDatabase(options.databasePath ?? './data/lng-learn.sqlite');
   const library = new Library(db, options.clock);
-  const provider = options.provider ?? new DemoContentProvider();
+  const provider = options.provider ?? configuredProvider();
   const allowedOrigins = new Set([
     'http://localhost:5173', 'http://127.0.0.1:5173',
     `http://localhost:${options.port ?? 3001}`, `http://127.0.0.1:${options.port ?? 3001}`,
@@ -54,7 +56,12 @@ export function buildApp(options: {
   app.get('/api/health', async () => ({ status: 'ok', contentProvider: provider.name }));
   app.get('/api/decks', async () => ({ decks: library.listDecks() }));
   app.post('/api/decks', async (request, reply) => reply.status(201).send(library.createDeck(deckInputSchema.parse(request.body))));
-  app.post('/api/drafts', async (request) => provider.draft(draftInputSchema.parse(request.body)));
+  app.post('/api/drafts', async (request) => {
+    const input = draftInputSchema.parse(request.body);
+    if (input.mode === 'manual') return manualDraft(input.word);
+    if (input.mode === 'demo') return new DemoContentProvider().draft(input);
+    return provider.draft(input);
+  });
   app.get<{ Params: { deckId: string } }>('/api/decks/:deckId/notes', async (request) => ({ notes: library.listNotes(request.params.deckId) }));
   app.post<{ Params: { deckId: string } }>('/api/decks/:deckId/notes', async (request, reply) => {
     const input = noteInputSchema.parse(request.body);
