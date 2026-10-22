@@ -6,7 +6,7 @@ import { App } from '../apps/web/src/App';
 import { Vocabulary } from '../apps/web/src/features/Vocabulary';
 import { Study } from '../apps/web/src/features/Study';
 import { api } from '../apps/web/src/api';
-import type { Content, Deck, Note } from '../packages/shared/src/contracts';
+import type { Content, Deck, Draft, Note } from '../packages/shared/src/contracts';
 
 vi.mock('../apps/web/src/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../apps/web/src/api')>(),
@@ -116,9 +116,9 @@ const bankDraft = {
       pronunciations: [], source: dictionarySource, example: 'We sat on the river bank.' },
   ],
 };
-async function previewBank() {
+async function previewBank(draft: Draft = bankDraft) {
   vi.mocked(api.notes).mockResolvedValue({ notes: [] });
-  vi.mocked(api.draft).mockResolvedValueOnce(structuredClone(bankDraft));
+  vi.mocked(api.draft).mockResolvedValueOnce(structuredClone(draft));
   render(<Vocabulary deck={deck} onSaved={vi.fn().mockResolvedValue(undefined)} />);
   fireEvent.change(screen.getByLabelText('英文單字'), { target: { value: 'bank' } });
   fireEvent.click(screen.getByRole('button', { name: '產生預覽' }));
@@ -169,4 +169,52 @@ it('相同詞義衝突保留草稿，仍可選其他義項；修改詞形會清�
   fireEvent.change(screen.getByLabelText('單字', { exact: true }), { target: { value: 'shore' } });
   expect(screen.queryByLabelText('詞義')).toBeNull();
   expect((screen.getByLabelText('英文單字') as HTMLInputElement).value).toBe('shore');
+});
+
+
+it('改詞形清除舊詞的自動音標與例句，但保留已人工修改的文字', async () => {
+  const withIpa: Draft = { ...bankDraft, senses: bankDraft.senses.map((sense) => ({ ...sense,
+    pronunciations: [{ ipa: '/bæŋk/', accent: 'unspecified', source: dictionarySource, recording: null }],
+  })) };
+  await previewBank(withIpa);
+  fireEvent.change(screen.getByLabelText('詞義'), { target: { value: 'finance' } });
+  fireEvent.change(screen.getByLabelText('中文釋義（必填）'), { target: { value: '人工釋義待校閱' } });
+  expect((screen.getByLabelText('音標') as HTMLInputElement).value).toBe('/bæŋk/');
+  expect((screen.getByLabelText('例句', { exact: true }) as HTMLTextAreaElement).value).toBe('I went to the bank.');
+  fireEvent.change(screen.getByLabelText('單字', { exact: true }), { target: { value: 'shore' } });
+  expect((screen.getByLabelText('音標') as HTMLInputElement).value).toBe('');
+  expect((screen.getByLabelText('例句', { exact: true }) as HTMLTextAreaElement).value).toBe('');
+  expect((screen.getByLabelText('中文釋義（必填）') as HTMLInputElement).value).toBe('人工釋義待校閱');
+});
+
+it('重查未回傳已選義項時，畫面仍明確顯示實際保留的詞義', async () => {
+  await previewBank();
+  fireEvent.change(screen.getByLabelText('詞義'), { target: { value: 'finance' } });
+  vi.mocked(api.draft).mockResolvedValueOnce({ ...bankDraft, notice: '此次僅回傳河岸', senses: [bankDraft.senses[1]] });
+  fireEvent.click(screen.getByRole('button', { name: '產生預覽' }));
+  await screen.findByText('此次僅回傳河岸');
+  const select = screen.getByLabelText('詞義') as HTMLSelectElement;
+  expect(select.value).toBe('finance');
+  expect(select.selectedOptions[0].textContent).toContain('A financial institution.');
+});
+
+it('切換來源會套用新來源的未修改欄位，同時保留人工內容及出處', async () => {
+  vi.mocked(api.notes).mockResolvedValue({ notes: [] });
+  vi.mocked(api.draft).mockResolvedValueOnce({ content: { ...content, meaning: '' }, status: 'needs-input', notice: '手動稿' })
+    .mockResolvedValueOnce({ content: { ...content, meaning: '示範蘋果', ipa: '/demo/', example: 'A demo apple.',
+      source: { kind: 'demo', provider: 'demo', url: null, license: null } }, status: 'demo', notice: '新的示範來源' });
+  render(<Vocabulary deck={deck} onSaved={vi.fn().mockResolvedValue(undefined)} />);
+  fireEvent.change(screen.getByLabelText('英文單字'), { target: { value: 'apple' } });
+  fireEvent.click(screen.getByRole('button', { name: '產生預覽' }));
+  await screen.findByLabelText('中文釋義（必填）');
+  fireEvent.change(screen.getByLabelText('中文釋義（必填）'), { target: { value: '我的蘋果釋義' } });
+  fireEvent.change(screen.getByRole('combobox', { name: '內容來源' }), { target: { value: 'demo' } });
+  fireEvent.click(screen.getByRole('button', { name: '產生預覽' }));
+  await screen.findByText('新的示範來源');
+  expect((screen.getByLabelText('音標') as HTMLInputElement).value).toBe('/demo/');
+  expect((screen.getByLabelText('中文釋義（必填）') as HTMLInputElement).value).toBe('我的蘋果釋義');
+  vi.mocked(api.save).mockImplementation(async (_deckId, saved) => ({ ...note, content: saved }));
+  fireEvent.click(screen.getByRole('button', { name: '確認儲存，加入下一個' }));
+  await screen.findByRole('heading', { name: 'apple' });
+  expect(vi.mocked(api.save).mock.calls[0][1].fieldSources.meaning).toMatchObject({ kind: 'manual', userEdited: true });
 });

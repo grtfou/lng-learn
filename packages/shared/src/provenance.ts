@@ -25,13 +25,34 @@ export function completeSources(content: Content, legacy = false): Content {
 export function editField(content: Content, field: ContentField, value: string | string[]): Content {
   const updated = completeSources(content);
   if (field === 'word' && normalizeWord(String(value)) !== normalizeWord(content.word)) {
-    // 改詞形後舊義項不再有效，需重新查詢或以手動義項儲存。
+    // 新詞不能沿用舊詞的自動教材；人工修改仍保留供校閱。
+    const emptyFields = { ipa: '', meaning: '', example: '', exampleTranslation: '', phrases: [], story: '', image: null, audio: null };
+    for (const key of Object.keys(emptyFields) as (keyof typeof emptyFields)[]) {
+      if (!updated.fieldSources[key]!.userEdited) {
+        Object.assign(updated, { [key]: emptyFields[key] });
+        updated.fieldSources[key] = manualSource();
+      }
+    }
     updated.sense = null;
     updated.fieldSources.sense = manualSource();
+    updated.source = { kind: 'manual', provider: 'manual', url: null, license: null };
   }
   return { ...updated, [field]: value, fieldSources: { ...updated.fieldSources,
     [field]: { ...updated.fieldSources[field]!, userEdited: true, status: hasValue(value) ? 'ready' : 'missing' },
   } };
+}
+
+/** 切換來源或查詢新詞時，只將明確人工修改的欄位帶入新稿。 */
+export function preserveEditedFields(previous: Content, next: Content): Content {
+  const updated = completeSources(next);
+  const sources = completeSources(previous).fieldSources;
+  for (const field of contentFields) {
+    if (field !== 'sense' && sources[field]!.userEdited) {
+      Object.assign(updated, { [field]: previous[field] });
+      updated.fieldSources[field] = sources[field];
+    }
+  }
+  return updated;
 }
 
 export function selectSense(content: Content, candidate: DictionarySense | null): Content {

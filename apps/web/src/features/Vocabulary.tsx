@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Check, Image, Mic, Sprout, Square, Volume2 } from 'lucide-react';
 import { normalizeWord, type ContentField, type Deck, type Draft, type Note } from '../../../../packages/shared/src/contracts';
-import { editField, selectSense } from '../../../../packages/shared/src/provenance';
+import { editField, preserveEditedFields, selectSense } from '../../../../packages/shared/src/provenance';
 import { api } from '../api';
 import { errorMessage } from '../format';
 import { browserSpeech, speak } from './speech';
@@ -11,6 +11,7 @@ export function Vocabulary({ deck, onSaved }: { deck: Deck; onSaved: () => Promi
   const [word, setWord] = useState('');
   const [draft, setDraft] = useState<Draft | null>(null);
   const [draftMode, setDraftMode] = useState<'configured' | 'demo' | 'manual'>('configured');
+  const [draftOrigin, setDraftOrigin] = useState<{ word: string; mode: typeof draftMode } | null>(null);
   const [senseChoice, setSenseChoice] = useState('');
   const [notes, setNotes] = useState<Note[]>([]);
   const [busy, setBusy] = useState(false);
@@ -48,21 +49,26 @@ export function Vocabulary({ deck, onSaved }: { deck: Deck; onSaved: () => Promi
     event?.preventDefault(); stop.current?.(); setListening(false); setBusy(true); setPreviewing(true); setError(''); setStatus('');
     try {
       const next = await api.draft(word, draftMode);
-      if (draft && normalizeWord(draft.content.word) === normalizeWord(next.content.word)) {
+      if (draft && draftOrigin?.word === normalizeWord(word) && draftOrigin.mode === draftMode) {
         setDraft({ ...next, content: draft.content, senses: next.issue ? draft.senses : next.senses });
-      } else { setDraft(next); setSenseChoice(''); }
+      } else {
+        const content = draft && normalizeWord(draft.content.word) === normalizeWord(next.content.word)
+          ? preserveEditedFields(draft.content, next.content) : next.content;
+        setDraft({ ...next, content }); setSenseChoice('');
+      }
+      setDraftOrigin({ word: normalizeWord(word), mode: draftMode });
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); setPreviewing(false); }
   }
   function update(key: ContentField, value: string | string[]) {
     if (key === 'word') { setWord(String(value)); setSenseChoice(''); }
     setDraft((current) => current ? { ...current, content: editField(current.content, key, value),
       ...(key === 'word' && normalizeWord(String(value)) !== normalizeWord(current.content.word)
-        ? { senses: [], notice: '單字已修改，先前義項已清除。請重新查詢或確認以手動義項儲存。', issue: undefined } : {}),
+        ? { status: 'needs-input', senses: [], notice: '單字已修改，已清除舊義項與未修改的自動內容；保留人工文字供校閱。請重新查詢或以手動義項儲存。', issue: undefined } : {}),
     } : current);
   }
   function chooseSense(key: string) {
     setSenseChoice(key);
-    setDraft((current) => current ? { ...current,
+    setDraft((current) => current?.content.sense?.key === key ? current : current ? { ...current,
       content: selectSense(current.content, current.senses?.find((sense) => sense.key === key) ?? null),
     } : current);
   }
@@ -77,6 +83,7 @@ export function Vocabulary({ deck, onSaved }: { deck: Deck; onSaved: () => Promi
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
   const content = draft?.content;
+  const retainedSense = content?.sense && !draft?.senses?.some((sense) => sense.key === content.sense?.key) ? content.sense : null;
   const needsSenseChoice = Boolean(draft?.senses?.length && !senseChoice && !content?.sense);
   return <>
     <section className="panel vocabulary-panel" aria-busy={busy}>
@@ -94,10 +101,11 @@ export function Vocabulary({ deck, onSaved }: { deck: Deck; onSaved: () => Promi
       {draft && content && <div className="draft-editor">
         <div className="notice" role="status">{draft.notice}{draft.issue && <button className="text-button" disabled={busy} onClick={() => void preview()}>重新查詢字典</button>}</div>
         <div className="draft-heading"><h3>校閱單字卡</h3><span className="tag">{draft.status === 'demo' ? '內建示範' : content.sense ? '字典義項' : '待確認／手動填寫'}</span></div>
-        {!!draft.senses?.length && <fieldset disabled={busy} className="sense-picker"><legend>選擇一個詞義</legend><p className="helper">切換義項會保留已修改文字，請重新確認繁中釋義與例句是否符合所選詞義。</p>
+        {(!!draft.senses?.length || retainedSense) && <fieldset disabled={busy} className="sense-picker"><legend>選擇一個詞義</legend><p className="helper">切換義項會保留已修改文字，請重新確認繁中釋義與例句是否符合所選詞義。</p>
           <select aria-label="詞義" value={content.sense?.key ?? senseChoice} onChange={(event) => chooseSense(event.target.value)}>
             <option value="" disabled>請先選擇詞義</option>
-            {draft.senses.map((sense) => <option lang="en" key={sense.key} value={sense.key}>{sense.partOfSpeech} — {sense.gloss}</option>)}
+            {retainedSense && <option lang="en" value={retainedSense.key}>先前已選（此次未回傳）：{retainedSense.partOfSpeech} — {retainedSense.gloss}</option>}
+            {draft.senses?.map((sense) => <option lang="en" key={sense.key} value={sense.key}>{sense.partOfSpeech} — {sense.gloss}</option>)}
             <option value="manual">以上皆不適用，確認以手動義項建立</option>
           </select>
         </fieldset>}
