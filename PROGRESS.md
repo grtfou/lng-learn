@@ -57,4 +57,6 @@ P1.1 已交付；目前依使用者要求進行審核、bug fixing 與 PR。本�
 - 預設即時查詢已完成；新增「啟動不查網路、輸入才查詢」測試，手動／demo 不連外。pnpm check 通過 57 項測試，dist 沒有測試字典 JSON／音檔或 bank fixture 文字。
 - cf566cc：預設輸入後即時查詢，啟動不預抓；測試與文件同步按需取得原則。
 - 瀏覽器複驗已完成：未設 provider 的正式建置即時查 apple、改詞清除自動教材、來源切換保留人工釋義、切回字典並選義保存成功。沒有其他阻擋提交的審核發現。
-- 目前：審核、修正與驗證完成；下一步推送 codex/dictionary-provenance 並建立以 main 為 base 的 PR。建立後在此記錄連結。
+- 92bd4e8：記錄審核與按需取得驗證。
+- 已推送 `codex/dictionary-provenance`，建立正式 PR #2：https://github.com/grtfou/lng-learn/pull/2 （base=main）。
+- 目前：本次審核、修正、提交與 PR 已完成，沒有待處理的審核阻擋項。後續依 PR 回饋處理；下一個產品切片仍為 P1.2。
